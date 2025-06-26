@@ -50,42 +50,39 @@ impl MainViewer {
     }
     fn show_tree(&mut self, ui: &mut Ui) {
         for (i, nodes) in self.nodes_info.iter().enumerate() {
-            ui.horizontal(|ui| {
-                let tree_id = {
-                    if self.show_alert_only {
-                        format!("{} [filtered]", nodes.name)
-                    } else {
-                        format!("{}", nodes.name)
-                    }
-                };
-                let tree_handle: egui::CollapsingResponse<()> = egui::CollapsingHeader::new(tree_id)
-                .default_open(self.show_alert_only)
-                .show(ui, |ui| {
-                    for (j, node) in nodes.nodes.iter().enumerate() {
-                        let selected = self.selected == Some((i, Some(j)));
-                        ui.horizontal(|ui| {
-                            if ui.selectable_label(selected, format!("{:?}", node.name)).clicked() {
-                                self.selected = Some((i, Some(j)));
-                            }
-                            ui.label(
-                                RichText::new(format!("{:?}", node.status))
-                                .color(status_coloer(&node.status))
-                            );
-                        });
-                    }
-                });
-                // select event: Nodes.name
-                if tree_handle.header_response.clicked(){
-                    self.selected = Some((i, None));
-                }
-                //let selected = self.selected == Some((i, None));
-                //if ui.selectable_label(selected, &nodes.name).clicked() {
-                //}
-                ui.label(
-                    RichText::new(format!("{:?}", nodes.status))
+            let tree_id = {
+                if self.show_alert_only {
+                    RichText::new(format!("{} {:?}     ",nodes.name, nodes.status))
                     .color(status_coloer(&nodes.status))
-                );
+                } else {
+                    RichText::new(format!("{} {:?}  ",nodes.name, nodes.status))
+                    .color(status_coloer(&nodes.status))
+                }
+            };
+            let tree_handle: egui::CollapsingResponse<()> = egui::CollapsingHeader::new(tree_id)
+            .default_open(self.show_alert_only)
+            .show(ui, |ui| {
+                for (j, node) in nodes.nodes.iter().enumerate() {
+                    let selected = self.selected == Some((i, Some(j)));
+                    ui.horizontal(|ui| {
+                        if ui.selectable_label(selected, format!("{:?}", node.name)).clicked() {
+                            self.selected = Some((i, Some(j)));
+                        }
+                        ui.label(
+                            RichText::new(format!("{:?}", node.status))
+                            .color(status_coloer(&node.status))
+                        );
+                    });
+                }
             });
+            // select event: Nodes.name
+            if tree_handle.header_response.clicked(){
+                self.selected = Some((i, None));
+            }
+            //let selected = self.selected == Some((i, None));
+            //if ui.selectable_label(selected, &nodes.name).clicked() {
+            //}
+
         }
     }
 
@@ -212,10 +209,10 @@ impl MainViewer {
 
 impl eframe::App for MainViewer {
     fn update(&mut self, ctx: &eframe::egui::Context, _frame: &mut eframe::Frame) {
-        egui::SidePanel::left("tree")
+        egui::TopBottomPanel::top("header")
         .show(ctx, |ui| {
             ui.horizontal(|ui| {
-                ui.label("Node Tree");
+                ui.heading("Node Viewer  ");
                 if ui.button("filter alerts").clicked() {
                     self.toggle_alert_filter();
                 }
@@ -223,8 +220,12 @@ impl eframe::App for MainViewer {
                     self.reload();
                 }
             });
+            
+        });
+        egui::SidePanel::left("tree")
+        .show(ctx, |ui| {
+            ui.label("Node Tree");
             egui::ScrollArea::vertical()
-            .stick_to_right(true)
             .show(ui, |ui| {
                 self.show_tree(ui);
             });
@@ -232,9 +233,7 @@ impl eframe::App for MainViewer {
         egui::CentralPanel::default()
         .show(ctx, |ui| {
             egui::ScrollArea::vertical()
-            .stick_to_right(true)
             .show(ui, |ui| {
-                ui.heading("Node Viewer");
                 //
                 if self.show_alert_only {
                     self.show_alert_table(ui);

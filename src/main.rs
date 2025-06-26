@@ -1,3 +1,4 @@
+#![windows_subsystem = "windows"]
 use crate::view::MainViewer;
 
 mod data;
