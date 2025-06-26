@@ -1,14 +1,38 @@
-use eframe::{self, egui::{self, RichText, Ui}};
+use eframe::{self, egui::{self, text::LayoutJob, FontId, RichText, TextFormat, Ui}};
 use egui_extras::{Column, TableBuilder};
 
 use crate::data::{self};
 
-fn status_coloer(status: &data::StatCode) -> egui::Color32 {
+fn status_color(status: &data::StatCode) -> egui::Color32 {
     match status {
         data::StatCode::Ok => egui::Color32::GREEN,
         data::StatCode::Ng => egui::Color32::RED,
         data::StatCode::Warning => egui::Color32::ORANGE,
     }
+}
+
+fn make_nodes_label(name: &str, status: &data::StatCode) -> LayoutJob {
+    let mut job = LayoutJob::default();
+    job.append(
+        name,
+        0.0,
+        TextFormat {
+            font_id: FontId::proportional(14.0),
+            ..Default::default()
+        },
+    );
+    job.append("  ", 0.0, TextFormat::default());
+    // status部分（色付き）
+    job.append(
+        &format!("{:?}", status),
+        0.0, 
+        TextFormat {
+            font_id: FontId::proportional(14.0),
+            color: status_color(status),
+            ..Default::default()
+        }
+    );
+    job
 }
 
 #[derive(Debug, Clone)]
@@ -52,11 +76,11 @@ impl MainViewer {
         for (i, nodes) in self.nodes_info.iter().enumerate() {
             let tree_id = {
                 if self.show_alert_only {
-                    RichText::new(format!("{} {:?}     ",nodes.name, nodes.status))
-                    .color(status_coloer(&nodes.status))
+                    let name = format!("{}",nodes.name);
+                    make_nodes_label(&name, &nodes.status)
                 } else {
-                    RichText::new(format!("{} {:?}  ",nodes.name, nodes.status))
-                    .color(status_coloer(&nodes.status))
+                    let name = format!("{} ",nodes.name);
+                    make_nodes_label(&name, &nodes.status)
                 }
             };
             let tree_handle: egui::CollapsingResponse<()> = egui::CollapsingHeader::new(tree_id)
@@ -70,7 +94,7 @@ impl MainViewer {
                         }
                         ui.label(
                             RichText::new(format!("{:?}", node.status))
-                            .color(status_coloer(&node.status))
+                            .color(status_color(&node.status))
                         );
                     });
                 }
@@ -82,14 +106,13 @@ impl MainViewer {
             //let selected = self.selected == Some((i, None));
             //if ui.selectable_label(selected, &nodes.name).clicked() {
             //}
-
         }
     }
 
     fn show_alert_table(&self, ui: &mut Ui) {
         // ノードROOTを巡回
         for (nodes_id, nodes) in self.nodes_info.iter().enumerate() {
-            ui.heading(format!("Nodes: {}", nodes.name));
+            ui.heading(format!("{}", nodes.name));
             ui.push_id(nodes_id, |ui|{
                 // ノードを巡回
                 for (node_id, node) in nodes.nodes.iter().enumerate() {
@@ -101,7 +124,7 @@ impl MainViewer {
                             .columns(Column::remainder().resizable(true), 3)
                             .header(20.0, |mut header| {
                                 header.col(|ui| {ui.label("index");});
-                                header.col(|ui| {ui.label("captions");});
+                                header.col(|ui| {ui.label("condition");});
                                 header.col(|ui| {ui.label("status");});
                             })
                             .body(|mut body| {
@@ -117,7 +140,7 @@ impl MainViewer {
                                             ui.label(
                                                 RichText::new(
                                                     format!("{:?}", &content.status)
-                                                ).color(status_coloer(&content.status))
+                                                ).color(status_color(&content.status))
                                             );    
                                         });
                                     });
@@ -143,13 +166,14 @@ impl MainViewer {
                 if let Some(node_id) = node_id {
                     // ノードノード情報を参照する（その中のコンテンツがほしい）
                     if let Some(node) = nodes.nodes.get(node_id) {
+                        ui.heading(format!("{}  /  {:?}:", nodes.name, node.name));
                         TableBuilder::new(ui)
                         .striped(true)
                         .columns(Column::remainder().resizable(true), 3)
                         .header(20.0, |mut header| {
                             header.col(|ui|{ui.label("index");});
-                            header.col(|ui|{ui.label("caption");});
-                            header.col(|ui|{ui.label("index");});
+                            header.col(|ui|{ui.label("condition");});
+                            header.col(|ui|{ui.label("status");});
                         })
                         .body(|mut body|{
                             for content in &node.contents {
@@ -163,7 +187,7 @@ impl MainViewer {
                                     row.col(|ui| {
                                         ui.label(
                                             RichText::new(format!("{:?}", content.status))
-                                            .color(status_coloer(&content.status))
+                                            .color(status_color(&content.status))
                                         );
                                         //ui.label(format!("{:?}", content.status));
                                     });
@@ -173,6 +197,7 @@ impl MainViewer {
                     }
                 } else {
                 // ノードルートが選択されている場合: ノードサマリを表示する
+                    ui.heading(format!("{}: Summary", nodes.name));
                     TableBuilder::new(ui)
                     //.columns(Column::auto(), 1)
                     .striped(true)
@@ -195,7 +220,7 @@ impl MainViewer {
                                 row.col(|ui| {
                                     ui.label(
                                         RichText::new(format!("{:?}", node.status))
-                                        .color(status_coloer(&node.status))
+                                        .color(status_color(&node.status))
                                     );
                                 });
                             });
@@ -232,16 +257,19 @@ impl eframe::App for MainViewer {
         });
         egui::CentralPanel::default()
         .show(ctx, |ui| {
-            egui::ScrollArea::vertical()
-            .show(ui, |ui| {
-                //
-                if self.show_alert_only {
+            if self.show_alert_only {
+                egui::ScrollArea::vertical()
+                .show(ui, |ui| {
+                    //
                     self.show_alert_table(ui);
-                } else if let Some((nodes_id, node_id)) = self.selected {
-                    ui.label(format!("nodes-id={:?}, node-id={:?}", nodes_id, node_id));
+                });
+            } else if let Some((nodes_id, node_id)) = self.selected {
+                ui.label(format!("log-id={:?}, node-id={:?}", nodes_id, node_id));
+                egui::ScrollArea::vertical()
+                .show(ui, |ui| {
                     self.show_table(ui);
-                }
-            });
+                });
+            }
         });
     }
 }

@@ -105,7 +105,7 @@ fn dummy_nodes_info() -> NodesInfo {
         let nodes = dummy_nodes();
         let status = aggregate_status(nodes.iter().map(|n| n.status.clone()));
         let nodes = Nodes{
-            name: format!("NodeInfo {:02}", i).to_string(),
+            name: format!("Node Log {:02}", i).to_string(),
             nodes,
             status,
         };
@@ -150,7 +150,7 @@ fn dummy_contents() -> Vec<Content> {
             caption = "stopped".to_string();
             status = StatCode::Ng
         } else if p_true(0.0005) {
-            caption = "running on degraded".to_string();
+            caption = "driving in degraded condition".to_string();
             status = StatCode::Warning;
         } else {
             caption = "running...".to_string();
